@@ -1,10 +1,10 @@
-pragma solidity ^0.4.19;
+pragma solidity ^0.4.21;
 
 import 'zeppelin-solidity/contracts/token/ERC20/BurnableToken.sol';
 import "zeppelin-solidity/contracts/token/ERC20/StandardToken.sol";
-import "zeppelin-solidity/contracts/ownership/Ownable.sol";
+import "zeppelin-solidity/contracts/ownership/Claimable.sol";
 
-contract LuckchemyToken is BurnableToken, StandardToken, Ownable {
+contract LuckchemyToken is BurnableToken, StandardToken, Claimable {
 
     bool public released = false;
 
@@ -18,14 +18,13 @@ contract LuckchemyToken is BurnableToken, StandardToken, Ownable {
 
     uint256 public OWNERS_AND_PARTNERS_SUPPLY;
 
-    // TODO: change this . Address of owners and partners
     address public constant OWNERS_AND_PARTNERS_ADDRESS = 0x0;
 
     // Index of unique addresses
-    uint public addressCount = 0;
+    uint256 public addressCount = 0;
 
     // Map of unique addresses
-    mapping(uint => address) public addressMap;
+    mapping(uint256 => address) public addressMap;
     mapping(address => bool) public addressAvailabilityMap;
 
     //blacklist of addresses (product/developers addresses) that are not included in the final Holder lottery
@@ -76,7 +75,7 @@ contract LuckchemyToken is BurnableToken, StandardToken, Ownable {
         Transfer(0x0, OWNERS_AND_PARTNERS_ADDRESS, OWNERS_AND_PARTNERS_SUPPLY);
     }
 
-    function transfer(address _to, uint _value) public canTransfer returns (bool success) {
+    function transfer(address _to, uint256 _value) public canTransfer returns (bool success) {
         //Add address to map of unique token owners
         addAddressToUniqueMap(_to);
 
@@ -84,7 +83,7 @@ contract LuckchemyToken is BurnableToken, StandardToken, Ownable {
         return super.transfer(_to, _value);
     }
 
-    function transferFrom(address _from, address _to, uint _value) public canTransfer returns (bool success) {
+    function transferFrom(address _from, address _to, uint256 _value) public canTransfer returns (bool success) {
         //Add address to map of unique token owners
         addAddressToUniqueMap(_to);
 
@@ -139,7 +138,7 @@ contract LuckchemyToken is BurnableToken, StandardToken, Ownable {
     /**
     * Get address by index from map of unique addresses
     */
-    function getUniqueAddressByIndex(uint _addressIndex) public view returns (address) {
+    function getUniqueAddressByIndex(uint256 _addressIndex) public view returns (address) {
         return addressMap[_addressIndex];
     }
 

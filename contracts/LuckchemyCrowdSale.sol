@@ -1,4 +1,4 @@
-pragma solidity ^0.4.15;
+pragma solidity ^0.4.21;
 
 
 //import '../node_modules/zeppelin-solidity/contracts/math/SafeMath.sol';
@@ -36,11 +36,15 @@ contract LuckchemyCrowdsale {
 
     //supply for crowdSale
     uint256 public totalSupply = 0;
+    // hard cap
+    uint256 public constant hardCap = 45360 ether;
     // soft cap
-    uint256 public constant softCap = 1000 ether;
+    uint256 public constant softCap = 2000 ether;
 
-    // ether representation of collected fiat
+    // wei representation of collected fiat
     uint256 public fiatBalance = 0;
+    // ether collected in wei
+    uint256 public ethBalance = 0;
 
     //address of serviceAgent (it can calls  payFiat function)
     address public serviceAgent;
@@ -49,19 +53,19 @@ contract LuckchemyCrowdsale {
     address public owner;
 
     //default token rate
-    uint public constant RATE = 25000; // Token price in ETH - 0.00004 ETH  1 ETHER = 25000 tokens
+    uint256 public constant RATE = 12500; // Token price in ETH - 0.00008 ETH  1 ETHER = 12500 tokens
 
     // 2018/04/30 - 2018/07/22  
-    uint public constant RATE_PRIVATE_PRESALE = RATE * 100 / 20; // 80 % discount
+    uint256 public constant RATE_PRIVATE_PRESALE = RATE * 100 / 20; // 80 % discount
 
     // 2018/04/30 - 2018/07/20
-    uint public constant RATE_STAGE_ONE = RATE * 100 / 60;  // 40% discount
+    uint256 public constant RATE_STAGE_ONE = RATE * 100 / 60;  // 40% discount
 
     // 2018/04/02 - 2018/04/24   
-    uint public constant RATE_STAGE_TWO = RATE * 100 / 80; // 20% discount
+    uint256 public constant RATE_STAGE_TWO = RATE * 100 / 80; // 20% discount
 
     // 2018/04/30 - 2018/07/22  
-    uint public constant RATE_STAGE_THREE = RATE;
+    uint256 public constant RATE_STAGE_THREE = RATE;
 
 
 
@@ -71,19 +75,15 @@ contract LuckchemyCrowdsale {
 
 
     /**
-     * List  of addresses for ICO fund with shares in %
+     * List of addresses for ICO fund with shares in %
      * 
      */
-    uint public constant LOTTERY_FUND_SHARE = 40;
-    uint public constant MARKETING_SHARE = 30;
-    uint public constant DEVELOPMENT_SHARE = 10;
-    uint public constant SUPPORT_SHARE = 10;
-    uint public constant PARTNERS_SHARE = 10;
+    uint256 public constant LOTTERY_FUND_SHARE = 40;
+    uint256 public constant OPERATIONS_SHARE = 50;
+    uint256 public constant PARTNERS_SHARE = 10;
 
     address public constant LOTTERY_FUND_ADDRESS = 0x84137CB59076a61F3f94B2C39Da8fbCb63B6f096;
-    address public constant MARKETING_ADDRESS = 0xEBBeAA0699837De527B29A03ECC914159D939Eea;
-    address public constant DEVELOPMENT_ADDRESS = 0xEBBeAA0699837De527B29A03ECC914159D939Eea;
-    address public constant SUPPORT_ADDRESS = 0xEBBeAA0699837De527B29A03ECC914159D939Eea;
+    address public constant OPERATIONS_ADDRESS = 0xEBBeAA0699837De527B29A03ECC914159D939Eea;
     address public constant PARTNERS_ADDRESS = 0x820502e8c80352f6e11Ce036DF03ceeEBE002642;
 
     /**
@@ -143,10 +143,10 @@ contract LuckchemyCrowdsale {
     Stage public  currentStage;
 
     //pools of token for each stage
-    mapping(uint => uint256) public tokenPools;
+    mapping(uint256 => uint256) public tokenPools;
 
     //number of tokens per 1 ether for each stage
-    mapping(uint => uint256) public stageRates;
+    mapping(uint256 => uint256) public stageRates;
 
     /*
     * deposit is amount in wei , which was sent to the contract
@@ -173,15 +173,17 @@ contract LuckchemyCrowdsale {
 
         currentStage = Stage.Private;
 
-        tokenPools[uint(Stage.Private)] = 70000000 * (10 ** (uint256(token.decimals())));
-        tokenPools[uint(Stage.Discount40)] = 105000000 * (10 ** (uint256(token.decimals())));
-        tokenPools[uint(Stage.Discount20)] = 175000000 * (10 ** (uint256(token.decimals())));
-        tokenPools[uint(Stage.NoDiscount)] = 350000000 * (10 ** (uint256(token.decimals())));
+        uint256 decimals = uint256(token.decimals());
 
-        stageRates[uint(Stage.Private)] = RATE_PRIVATE_PRESALE * (10 ** (uint256(token.decimals())));
-        stageRates[uint(Stage.Discount40)] = RATE_STAGE_ONE * (10 ** (uint256(token.decimals())));
-        stageRates[uint(Stage.Discount20)] = RATE_STAGE_TWO * (10 ** (uint256(token.decimals())));
-        stageRates[uint(Stage.NoDiscount)] = RATE_STAGE_THREE * (10 ** (uint256(token.decimals())));
+        tokenPools[uint256(Stage.Private)] = 70000000 * (10 ** decimals);
+        tokenPools[uint256(Stage.Discount40)] = 105000000 * (10 ** decimals);
+        tokenPools[uint256(Stage.Discount20)] = 175000000 * (10 ** decimals);
+        tokenPools[uint256(Stage.NoDiscount)] = 350000000 * (10 ** decimals);
+
+        stageRates[uint256(Stage.Private)] = RATE_PRIVATE_PRESALE * (10 ** decimals);
+        stageRates[uint256(Stage.Discount40)] = RATE_STAGE_ONE * (10 ** decimals);
+        stageRates[uint256(Stage.Discount20)] = RATE_STAGE_TWO * (10 ** decimals);
+        stageRates[uint256(Stage.NoDiscount)] = RATE_STAGE_THREE * (10 ** decimals);
 
     }
 
@@ -219,42 +221,35 @@ contract LuckchemyCrowdsale {
     }
 
     /*
-         * function for processing purchase in private sale
-         * @weiAmount - amount of wei , which send to the contract
-         * @beneficiary - address for receiving tokens
-         */
+     * function for processing purchase in private sale
+     * @weiAmount - amount of wei , which send to the contract
+     * @beneficiary - address for receiving tokens
+     */
     function processPrivatePurchase(uint256 weiAmount, address beneficiary) private {
 
-        uint stage = uint(Stage.Private);
+        uint256 stage = uint256(Stage.Private);
 
+        require(currentStage == Stage.Private);
         require(tokenPools[stage] > 0);
 
         //calculate number tokens
-        uint tokensToBuy = (weiAmount.mul(stageRates[stage])).div(1 ether);
+        uint256 tokensToBuy = (weiAmount.mul(stageRates[stage])).div(1 ether);
         if (tokensToBuy <= tokenPools[stage]) {
             //pool has enough tokens
-            tokenPools[stage] = tokenPools[stage].sub(tokensToBuy);
-            tokensSold = tokensSold.add(tokensToBuy);
-            deposits[beneficiary] = deposits[beneficiary].add(weiAmount);
-
-            token.transfer(beneficiary, tokensToBuy);
-            TokenETHPurchase(msg.sender, beneficiary, weiAmount, tokensToBuy);
+            payoutTokens(beneficiary, tokensToBuy, weiAmount);
 
         } else {
             //pool doesn't have enough tokens
-            uint leftTokens = tokensToBuy.sub(tokenPools[stage]);
+            tokensToBuy = tokenPools[stage];
             //left wei
-            uint leftWei = leftTokens.mul(1 ether).div(stageRates[stage]);
-            uint usedWei = weiAmount.sub(leftWei);
-            tokensSold = tokensSold.add(tokenPools[stage]);
-            tokenPools[stage] = 0;
-            deposits[beneficiary] = deposits[beneficiary].add(usedWei);
+            uint256 usedWei = (tokensToBuy.mul(1 ether)).div(stageRates[stage]);
+            uint256 leftWei = weiAmount.sub(usedWei);
+
+            payoutTokens(beneficiary, tokensToBuy, usedWei);
+
             //change stage to Public Sale
             currentStage = Stage.Discount40;
 
-            // tokensToBuy - leftTokens == tokens in pool
-            token.transfer(beneficiary, tokensToBuy.sub(leftTokens));
-            TokenETHPurchase(msg.sender, beneficiary, usedWei, tokensToBuy.sub(leftTokens));
             //return left wei to beneficiary and change stage
             beneficiary.transfer(leftWei);
         }
@@ -268,42 +263,29 @@ contract LuckchemyCrowdsale {
 
         if (currentStage == Stage.Private) {
             currentStage = Stage.Discount40;
-            tokenPools[uint(Stage.Discount40)] = tokenPools[uint(Stage.Discount40)].add(tokenPools[uint(Stage.Private)]);
-            tokenPools[uint(Stage.Private)] = 0;
+            tokenPools[uint256(Stage.Discount40)] = tokenPools[uint256(Stage.Discount40)].add(tokenPools[uint256(Stage.Private)]);
+            tokenPools[uint256(Stage.Private)] = 0;
         }
 
-        for (uint stage = uint(currentStage); stage <= 3; stage++) {
+        for (uint256 stage = uint256(currentStage); stage <= 3; stage++) {
 
             //calculate number tokens
-            uint tokensToBuy = (weiAmount.mul(stageRates[stage])).div(1 ether);
+            uint256 tokensToBuy = (weiAmount.mul(stageRates[stage])).div(1 ether);
 
             if (tokensToBuy <= tokenPools[stage]) {
                 //pool has enough tokens
-                tokenPools[stage] = tokenPools[stage].sub(tokensToBuy);
-                tokensSold = tokensSold.add(tokensToBuy);
-                deposits[beneficiary] = deposits[beneficiary].add(weiAmount);
-
-                token.transfer(beneficiary, tokensToBuy);
-                TokenETHPurchase(msg.sender, beneficiary, weiAmount, tokensToBuy);
+                payoutTokens(beneficiary, tokensToBuy, weiAmount);
 
                 break;
             } else {
                 //pool doesn't have enough tokens
-                uint leftTokens = tokensToBuy.sub(tokenPools[stage]);
+                tokensToBuy = tokenPools[stage];
+                //left wei
+                uint256 usedWei = (tokensToBuy.mul(1 ether)).div(stageRates[stage]);
+                uint256 leftWei = weiAmount.sub(usedWei);
 
-                //calculate left wei for next state
-                uint leftWei = leftTokens.mul(1 ether).div(stageRates[stage]);
+                payoutTokens(beneficiary, tokensToBuy, usedWei);
 
-                //calculate used wei for current stage
-                uint usedWei = weiAmount.sub(leftWei);
-
-                tokensSold = tokensSold.add(tokenPools[stage]);
-                tokenPools[stage] = 0;
-                deposits[beneficiary] = deposits[beneficiary].add(usedWei);
-
-                // tokensToBuy - leftTokens == tokens in pool
-                token.transfer(beneficiary, tokensToBuy.sub(leftTokens));
-                TokenETHPurchase(msg.sender, beneficiary, usedWei, tokensToBuy.sub(leftTokens));
                 if (stage == 3) {
                     //return unused wei when all tokens sold
                     beneficiary.transfer(leftWei);
@@ -315,6 +297,22 @@ contract LuckchemyCrowdsale {
                 }
             }
         }
+    }
+    /*
+     * function for actual payout in public sale
+     * @beneficiary - address for receiving tokens
+     * @tokenAmount - amount of tokens to payout
+     * @weiAmount - amount of wei used
+     */
+    function payoutTokens(address beneficiary, uint256 tokenAmount, uint256 weiAmount) private {
+        uint256 stage = uint256(currentStage);
+        tokensSold = tokensSold.add(tokenAmount);
+        tokenPools[stage] = tokenPools[stage].sub(tokenAmount);
+        deposits[beneficiary] = deposits[beneficiary].add(weiAmount);
+        ethBalance = ethBalance.add(weiAmount);
+
+        token.transfer(beneficiary, tokenAmount);
+        TokenETHPurchase(msg.sender, beneficiary, weiAmount, tokenAmount);
     }
     /*
      * function for change btc agent
@@ -330,22 +328,22 @@ contract LuckchemyCrowdsale {
      * public key - #
      * @beneficiary - address, which received tokens
      * @amount - amount tokens
-     * @amount - number of the stage (80% 40% 20% 0% discount)
+     * @stage - number of the stage (80% 40% 20% 0% discount)
      * can be called only by serviceAgent address
      */
     function payFiat(address beneficiary, uint256 amount, uint256 stage) public onlyServiceAgent onlyWhiteList(beneficiary) {
 
         require(beneficiary != 0x0);
-        require(validPurchase());
         require(tokenPools[stage] >= amount);
         require(stage == uint256(currentStage));
 
+        //calculate fiat amount in wei
+        uint256 fiatWei = amount.mul(1 ether).div(stageRates[stage]);
+        fiatBalance = fiatBalance.add(fiatWei);
+        require(validPurchase());
+
         tokenPools[stage] = tokenPools[stage].sub(amount);
         tokensSold = tokensSold.add(amount);
-
-        //calculate fiat amount in wei
-        uint fiatWei = amount.mul(1 ether).div(stageRates[stage]);
-        fiatBalance = fiatBalance.add(fiatWei);
 
         token.transfer(beneficiary, amount);
         TokenFiatPurchase(msg.sender, beneficiary, amount);
@@ -363,45 +361,40 @@ contract LuckchemyCrowdsale {
      * function for  checking if hardCapReached
      */
     function hardCapReached() public constant returns (bool) {
-        return tokensSold >= totalSupply;
+        return tokensSold >= totalSupply || fiatBalance.add(ethBalance) >= hardCap;
     }
     /*
      * function for  checking if crowdsale goal is reached
      */
-    function goalReached() public constant returns (bool) {
-        return fiatBalance.add(this.balance) >= softCap;
+    function softCapReached() public constant returns (bool) {
+        return fiatBalance.add(ethBalance) >= softCap;
     }
 
     function isPrivateSale() public constant returns (bool) {
         return now >= START_TIME_PRESALE && now <= END_TIME_PRESALE;
     }
+
     /*
      * function that call after crowdsale is ended
      *          releaseTokenTransfer - enable token transfer between users.
      *          burn tokens which are left on crowsale contract balance
-     *          transfer balance of contract to wallets accoridng to shares.
+     *          transfer balance of contract to wallets according to shares.
      */
-
     function forwardFunds() public onlyOwner {
         require(hasEnded());
-        require(goalReached());
+        require(softCapReached());
 
         token.releaseTokenTransfer();
         token.burn(token.balanceOf(this));
-
 
         //transfer token ownership to this owner of crowdsale
         token.transferOwnership(msg.sender);
 
         //transfer funds here
-        uint totalBalance = this.balance;
+        uint256 totalBalance = this.balance;
         LOTTERY_FUND_ADDRESS.transfer((totalBalance.mul(LOTTERY_FUND_SHARE)).div(100));
-        MARKETING_ADDRESS.transfer((totalBalance.mul(MARKETING_SHARE)).div(100));
-        SUPPORT_ADDRESS.transfer((totalBalance.mul(SUPPORT_SHARE)).div(100));
-        DEVELOPMENT_ADDRESS.transfer((totalBalance.mul(DEVELOPMENT_SHARE)).div(100));
-        PARTNERS_ADDRESS.transfer((totalBalance.mul(PARTNERS_SHARE)).div(100));
-
-
+        OPERATIONS_ADDRESS.transfer((totalBalance.mul(OPERATIONS_SHARE)).div(100));
+        PARTNERS_ADDRESS.transfer(this.balance); // send the rest to partners (PARTNERS_SHARE)
     }
     /*
      * function that call after crowdsale is ended
@@ -411,7 +404,7 @@ contract LuckchemyCrowdsale {
      */
     function refund() public {
         require(hasEnded());
-        require(!goalReached() || ((now > END_TIME_SALE + 7 days) && !token.released()));
+        require(!softCapReached() || ((now > END_TIME_SALE + 30 days) && !token.released()));
         uint256 amount = deposits[msg.sender];
         require(amount > 0);
         deposits[msg.sender] = 0;
