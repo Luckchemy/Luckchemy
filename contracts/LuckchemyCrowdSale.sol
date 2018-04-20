@@ -56,16 +56,16 @@ contract LuckchemyCrowdsale {
     uint256 public constant RATE = 12500; // Token price in ETH - 0.00008 ETH  1 ETHER = 12500 tokens
 
     // 2018/04/30 - 2018/07/22  
-    uint256 public constant RATE_PRIVATE_PRESALE = RATE * 100 / 20; // 80 % discount
+    uint256 public constant DISCOUNT_PRIVATE_PRESALE = 80; // 80 % discount
 
     // 2018/04/30 - 2018/07/20
-    uint256 public constant RATE_STAGE_ONE = RATE * 100 / 60;  // 40% discount
+    uint256 public constant DISCOUNT_STAGE_ONE = 40;  // 40% discount
 
     // 2018/04/02 - 2018/04/24   
-    uint256 public constant RATE_STAGE_TWO = RATE * 100 / 80; // 20% discount
+    uint256 public constant DISCOUNT_STAGE_TWO = 20; // 20% discount
 
     // 2018/04/30 - 2018/07/22  
-    uint256 public constant RATE_STAGE_THREE = RATE;
+    uint256 public constant DISCOUNT_STAGE_THREE = 0;
 
 
 
@@ -180,10 +180,10 @@ contract LuckchemyCrowdsale {
         tokenPools[uint256(Stage.Discount20)] = 175000000 * (10 ** decimals);
         tokenPools[uint256(Stage.NoDiscount)] = 350000000 * (10 ** decimals);
 
-        stageRates[uint256(Stage.Private)] = RATE_PRIVATE_PRESALE * (10 ** decimals);
-        stageRates[uint256(Stage.Discount40)] = RATE_STAGE_ONE * (10 ** decimals);
-        stageRates[uint256(Stage.Discount20)] = RATE_STAGE_TWO * (10 ** decimals);
-        stageRates[uint256(Stage.NoDiscount)] = RATE_STAGE_THREE * (10 ** decimals);
+        stageRates[uint256(Stage.Private)] = RATE.mul(10 ** decimals).mul(100).div(100 - DISCOUNT_PRIVATE_PRESALE);
+        stageRates[uint256(Stage.Discount40)] = RATE.mul(10 ** decimals).mul(100).div(100 - DISCOUNT_STAGE_ONE);
+        stageRates[uint256(Stage.Discount20)] = RATE.mul(10 ** decimals).mul(100).div(100 - DISCOUNT_STAGE_TWO);
+        stageRates[uint256(Stage.NoDiscount)] = RATE.mul(10 ** decimals).mul(100).div(100 - DISCOUNT_STAGE_THREE);
 
     }
 

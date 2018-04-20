@@ -18,7 +18,7 @@ contract LuckchemyToken is BurnableToken, StandardToken, Claimable {
 
     uint256 public OWNERS_AND_PARTNERS_SUPPLY;
 
-    address public constant OWNERS_AND_PARTNERS_ADDRESS = 0x0;
+    address public constant OWNERS_AND_PARTNERS_ADDRESS = 0x603a535a1D7C5050021F9f5a4ACB773C35a67602;
 
     // Index of unique addresses
     uint256 public addressCount = 0;
